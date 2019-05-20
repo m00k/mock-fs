@@ -1205,10 +1205,14 @@ describe('Mocking the file system', function() {
     });
   });
 
-  describe('fs.readdirSync(path)', function() {
+  describe.only('fs.readdirSync(path)', function() {
     beforeEach(function() {
-      mock({
+      const options = {
+        excludePaths: ['foo/bar']
+      };
+      const fs = {
         'path/to/file.txt': 'file content',
+        'foo/file.txt': 'boo',
         nested: {
           sub: {
             dir: {
@@ -1218,7 +1222,8 @@ describe('Mocking the file system', function() {
             }
           }
         }
-      });
+      };
+      mock(fs, options);
     });
     afterEach(mock.restore);
 
@@ -1234,9 +1239,44 @@ describe('Mocking the file system', function() {
       assert.deepEqual(items, ['empty', 'one.txt', 'two.txt']);
     });
 
+    it('lists nested directory contents', function() {
+      const items = fs.readdirSync('foo');
+      assert.isArray(items);
+      assert.deepEqual(items, ['file.txt']);
+    });
+
     it('throws for bogus path', function() {
       assert.throws(function() {
         fs.readdirSync('bogus');
+      });
+    });
+
+    it('throws for paths nested in excluded paths', function() {
+      assert.throws(() => fs.readdirSync(path.join('foo/bar/boo/bay')));
+    });
+
+    it('throws for excluded bogus paths', function() {
+      assert.throws(() => fs.readdirSync(path.join('foo/bar')));
+      assert.throws(() => fs.readdirSync(path.join('foo/bar/')));
+    });
+
+    describe('when no excludePathsBinding is provided the real filesystem will be used to', function() {
+      beforeEach(function() {
+        const options = {
+          excludePaths: ['test/real-fs']
+        };
+        const fs = {
+          'one.txt': 'one content',
+          'two.txt': 'two content'
+        };
+        mock(fs, options);
+      });
+      afterEach(mock.restore);
+
+      it('list directory contents', function() {
+        const items = fs.readdirSync(path.join('test', 'real-fs'));
+        assert.isArray(items);
+        assert.deepEqual(items, ['one.txt']);
       });
     });
   });
