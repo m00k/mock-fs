@@ -57,6 +57,8 @@ The second (optional) argument may include the properties below.
 
  * `createCwd` - `boolean` Create a directory for `process.cwd()`.  This is `true` by default.
  * `createTmp` - `boolean` Create a directory for `os.tmpdir()`.  This is `true` by default.
+ * `excludePaths` - `string[]` Exclude a list of paths (and their children) from being mocked. This is `[]` by default.
+ * `excludePathsBinding` - `object` Use this binding for excluded paths. This is `process.binding('fs')` by default.
 
 ### Creating files
 
@@ -171,6 +173,25 @@ mock({
   }
 });
 ```
+
+### Exclude paths
+
+Paths can be excluded from mocking. For these paths the *real file system* will be accessed by default. This is especially useful when the code you are testing uses *lazy requires*, meaning `require()` is being called after the file system has been mocked away. This results in an error because files albeit present on the real *file system* are overlaid by the *mock fs* and can't be found. To prevent this you could use:
+
+```js
+mock(
+  {
+    'path/to/fake/dir': {
+    'some-file.txt': 'file content here',
+    'empty-dir': { }
+  },
+  {
+    excludePaths: 'node_modules'
+  }
+);
+```
+
+It is possible to provide a custom *fs binding* for *excluded paths* using the `excludePathsBinding` [`option`](#options). You will most likely never need it though.
 
 ### Restoring the file system
 
