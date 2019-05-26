@@ -1,5 +1,6 @@
 'use strict';
 
+const fsBinding = process.binding('fs');
 const Writable = require('stream').Writable;
 const helper = require('../helper');
 const fs = require('fs');
@@ -8,6 +9,11 @@ const os = require('os');
 const path = require('path');
 const bufferFrom = require('../../lib/buffer').from;
 const bufferAlloc = require('../../lib/buffer').alloc;
+const chai = require('chai');
+const sinon = require('sinon');
+const sinonChai = require('sinon-chai');
+
+chai.use(sinonChai);
 
 const assert = helper.assert;
 const inVersion = helper.inVersion;
@@ -1205,7 +1211,7 @@ describe('Mocking the file system', function() {
     });
   });
 
-  describe.only('fs.readdirSync(path)', function() {
+  describe('fs.readdirSync(path)', function() {
     describe('within mocked fs', function() {
       beforeEach(function() {
         mock({
@@ -1282,10 +1288,12 @@ describe('Mocking the file system', function() {
       });
 
       describe('with excludePathsBinding', function() {
-        
+        const fsBindingMock = sinon.mock(fsBinding);
+
         beforeEach(function() {
           const options = {
-            excludePaths: ['test/real-fs']
+            excludePaths: ['test/real-fs'],
+            excludePathsBinding: fsBindingMock
           };
           const fs = {
             'one.txt': 'one content',
@@ -1295,28 +1303,17 @@ describe('Mocking the file system', function() {
         });
         afterEach(mock.restore);
 
-        it('list directory contents from real fs', function() {
-          const items = fs.readdirSync(path.join('test', 'real-fs'));
-          assert.isArray(items);
-          assert.deepEqual(items, ['one.txt']);
+        it('uses the provided fs binding for excluded paths', function() {
+          fsBindingMock.expects('readdir').once();
+          fs.readdirSync(path.join('test', 'real-fs'));
+          fsBindingMock.verify();
         });
 
-        it('throws for bogus paths in mocked fs', function() {
-          assert.throws(() => fs.readdirSync(path.join('foo', 'bar')));
-          assert.throws(() => fs.readdirSync(path.join('foo', 'bar')));
-          assert.throws(() => fs.readdirSync(path.join('foo', 'bar', 'baz')));
-          assert.throws(() =>
-            fs.readdirSync(path.join('foo', 'bar', 'boo.txt'))
-          );
-        });
-
-        it('throws for bogus paths in real fs', function() {
-          assert.throws(() =>
-            fs.readdirSync(path.join('test', 'real-fs', 'baz'))
-          );
-          assert.throws(() =>
-            fs.readdirSync(path.join('test', 'real-fs', 'boo.txt'))
-          );
+        it('uses the mocked fs outside excluded path', function() {
+          fsBindingMock.expects('readdir').never();
+          const items = fs.readdirSync('.');
+          assert.deepEqual(items, ['one.txt', 'two.txt']);
+          fsBindingMock.verify();
         });
       });
     });
