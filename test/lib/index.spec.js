@@ -1212,109 +1212,37 @@ describe('Mocking the file system', function() {
   });
 
   describe('fs.readdirSync(path)', function() {
-    describe('within mocked fs', function() {
-      beforeEach(function() {
-        mock({
-          'path/to/file.txt': 'file content',
-          nested: {
-            sub: {
-              dir: {
-                'one.txt': 'one content',
-                'two.txt': 'two content',
-                empty: {}
-              }
+    beforeEach(function() {
+      mock({
+        'path/to/file.txt': 'file content',
+        nested: {
+          sub: {
+            dir: {
+              'one.txt': 'one content',
+              'two.txt': 'two content',
+              empty: {}
             }
           }
-        });
-      });
-      afterEach(mock.restore);
-
-      it('lists directory contents', function() {
-        const items = fs.readdirSync(path.join('path', 'to'));
-        assert.isArray(items);
-        assert.deepEqual(items, ['file.txt']);
-      });
-
-      it('lists nested directory contents', function() {
-        const items = fs.readdirSync(path.join('nested', 'sub', 'dir'));
-        assert.isArray(items);
-        assert.deepEqual(items, ['empty', 'one.txt', 'two.txt']);
-      });
-
-      it('throws for bogus path', function() {
-        assert.throws(function() {
-          fs.readdirSync('bogus');
-        });
+        }
       });
     });
+    afterEach(mock.restore);
 
-    describe('with excludePaths option', function() {
-      describe('without excludePathsBinding', function() {
-        beforeEach(function() {
-          const options = {
-            excludePaths: ['test/real-fs']
-          };
-          const fs = {
-            'one.txt': 'one content',
-            'two.txt': 'two content'
-          };
-          mock(fs, options);
-        });
-        afterEach(mock.restore);
+    it('lists directory contents', function() {
+      const items = fs.readdirSync(path.join('path', 'to'));
+      assert.isArray(items);
+      assert.deepEqual(items, ['file.txt']);
+    });
 
-        it('list directory contents from real fs', function() {
-          const items = fs.readdirSync(path.join('test', 'real-fs'));
-          assert.isArray(items);
-          assert.deepEqual(items, ['one.txt']);
-        });
+    it('lists nested directory contents', function() {
+      const items = fs.readdirSync(path.join('nested', 'sub', 'dir'));
+      assert.isArray(items);
+      assert.deepEqual(items, ['empty', 'one.txt', 'two.txt']);
+    });
 
-        it('throws for bogus paths in mocked fs', function() {
-          assert.throws(() => fs.readdirSync(path.join('foo', 'bar')));
-          assert.throws(() => fs.readdirSync(path.join('foo', 'bar')));
-          assert.throws(() => fs.readdirSync(path.join('foo', 'bar', 'baz')));
-          assert.throws(() =>
-            fs.readdirSync(path.join('foo', 'bar', 'boo.txt'))
-          );
-        });
-
-        it('throws for bogus paths in real fs', function() {
-          assert.throws(() =>
-            fs.readdirSync(path.join('test', 'real-fs', 'baz'))
-          );
-          assert.throws(() =>
-            fs.readdirSync(path.join('test', 'real-fs', 'boo.txt'))
-          );
-        });
-      });
-
-      describe('with excludePathsBinding', function() {
-        const fsBindingMock = sinon.mock(fsBinding);
-
-        beforeEach(function() {
-          const options = {
-            excludePaths: ['test/real-fs'],
-            excludePathsBinding: fsBindingMock
-          };
-          const fs = {
-            'one.txt': 'one content',
-            'two.txt': 'two content'
-          };
-          mock(fs, options);
-        });
-        afterEach(mock.restore);
-
-        it('uses the provided fs binding for excluded paths', function() {
-          fsBindingMock.expects('readdir').once();
-          fs.readdirSync(path.join('test', 'real-fs'));
-          fsBindingMock.verify();
-        });
-
-        it('uses the mocked fs outside excluded path', function() {
-          fsBindingMock.expects('readdir').never();
-          const items = fs.readdirSync('.');
-          assert.deepEqual(items, ['one.txt', 'two.txt']);
-          fsBindingMock.verify();
-        });
+    it('throws for bogus path', function() {
+      assert.throws(function() {
+        fs.readdirSync('bogus');
       });
     });
   });
@@ -3442,6 +3370,74 @@ describe('Mocking the file system', function() {
         output.uncork();
       });
     }
+  });
+
+  describe('excludePaths option', function() {
+    describe('with default binding', function() {
+      beforeEach(function() {
+        const options = {
+          excludePaths: ['test/real-fs']
+        };
+        const fs = {
+          'one.txt': 'one content',
+          'two.txt': 'two content'
+        };
+        mock(fs, options);
+      });
+      afterEach(mock.restore);
+
+      it('list directory contents from real fs', function() {
+        const items = fs.readdirSync(path.join('test', 'real-fs'));
+        assert.isArray(items);
+        assert.deepEqual(items, ['one.txt']);
+      });
+
+      it('throws for bogus paths in mocked fs', function() {
+        assert.throws(() => fs.readdirSync(path.join('foo', 'bar')));
+        assert.throws(() => fs.readdirSync(path.join('foo', 'bar')));
+        assert.throws(() => fs.readdirSync(path.join('foo', 'bar', 'baz')));
+        assert.throws(() => fs.readdirSync(path.join('foo', 'bar', 'boo.txt')));
+      });
+
+      it('throws for bogus paths in real fs', function() {
+        assert.throws(() =>
+          fs.readdirSync(path.join('test', 'real-fs', 'baz'))
+        );
+        assert.throws(() =>
+          fs.readdirSync(path.join('test', 'real-fs', 'boo.txt'))
+        );
+      });
+    });
+
+    describe('with excludePathsBinding option', function() {
+      const fsBindingMock = sinon.mock(fsBinding);
+
+      beforeEach(function() {
+        const options = {
+          excludePaths: ['test/real-fs'],
+          excludePathsBinding: fsBindingMock
+        };
+        const fs = {
+          'one.txt': 'one content',
+          'two.txt': 'two content'
+        };
+        mock(fs, options);
+      });
+      afterEach(mock.restore);
+
+      it('uses the provided fs binding for excluded paths', function() {
+        fsBindingMock.expects('readdir').once();
+        fs.readdirSync(path.join('test', 'real-fs'));
+        fsBindingMock.verify();
+      });
+
+      it('uses the mocked fs outside excluded path', function() {
+        fsBindingMock.expects('readdir').never();
+        const items = fs.readdirSync('.');
+        assert.deepEqual(items, ['one.txt', 'two.txt']);
+        fsBindingMock.verify();
+      });
+    });
   });
 
   describe('process.cwd()', function() {
